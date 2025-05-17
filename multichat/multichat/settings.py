@@ -33,7 +33,7 @@ CHANNEL_LAYERS = {
 }
 
 # ASGI_APPLICATION should be set to your outermost router
-ASGI_APPLICATION = 'multichat.routing.application'
+ASGI_APPLICATION = "multichat.asgi.application" # For channels support
 
 
 ##### Project-specific settings
@@ -70,7 +70,7 @@ MESSAGE_TYPES_LIST = [
 
 # SECURITY WARNING: keep the secret key used in production secret! And don't use debug=True in production!
 SECRET_KEY = 'imasecret'
-DEBUG = True
+DEBUG =True
 ALLOWED_HOSTS = []
 
 # Application definition
@@ -96,6 +96,11 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'multichat.urls'
+
+# Authentication
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'  # Where to redirect after login
+LOGOUT_REDIRECT_URL = '/'  # Where to redirect after logout
 
 
 TEMPLATES = [
@@ -154,3 +159,4 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

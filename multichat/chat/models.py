@@ -1,11 +1,12 @@
 from django.db import models
 
-
 class Room(models.Model):
     """
     A room for people to chat in.
     """
-
+    # Primary key
+    id = models.BigAutoField(primary_key=True)
+    
     # Room title
     title = models.CharField(max_length=255)
 
@@ -22,3 +23,4 @@ class Room(models.Model):
         messages as they are generated.
         """
         return "room-%s" % self.id
+        

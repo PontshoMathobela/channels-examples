@@ -1,158 +1,180 @@
-{% extends "base.html" %}
+{% extends 'chat/base.html' %}
+{% load static %}
 
-{% block title %}MultiChat Example{% endblock %}
-{% block header_text %}MultiChat Example{% endblock %}
+{% block title %}Connect - Chat Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="chat-container">
+    <!-- Sidebar with user list -->
+    <div class="chat-sidebar" id="userList">
+        <div class="search-container">
+            <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" id="userSearch" class="form-control border-start-0" placeholder="Search users">
+            </div>
+        </div>
 
-    <ul class="rooms">
-        {% for room in rooms %}
-            <li class="room-link" data-room-id="{{ room.id }}">{{ room }}</li>
-        {% empty %}
-            <p class="empty">No chat rooms defined. Maybe make some in the <a href="{% url 'admin:index' %}">admin</a>?</p>
-        {% endfor %}
-    </ul>
-
-    <div id="chats">
+        <div class="user-list-container">
+            <div class="user-list" id="userListContent">
+                {% for conversation in conversations %}
+                <div class="user-item {% if conversation.unread_count > 0 %}has-unread{% endif %}" 
+                     data-user-id="{{ conversation.user.id }}" data-username="{{ conversation.user.username }}">
+                    <div class="user-avatar">
+                        <div class="avatar-placeholder">{{ conversation.user.username|first|upper }}</div>
+                        <span class="status-indicator {% if conversation.user.profile.is_online %}online{% else %}offline{% endif %}"></span>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ conversation.user.username }}</div>
+                        <div class="last-message">
+                            {{ conversation.last_message.content|truncatechars:30 }}
+                        </div>
+                    </div>
+                    <div class="user-meta">
+                        <div class="message-time">{{ conversation.last_message.formatted_timestamp }}</div>
+                        {% if conversation.unread_count > 0 %}
+                        <div class="unread-count">{{ conversation.unread_count }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="no-conversations">
+                    <div class="text-center p-4">
+                        <i class="fas fa-comments fa-3x mb-3 text-muted"></i>
+                        <h5>No conversations yet</h5>
+                        <p class="text-muted">Select a user to start chatting</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 
-    <div class="typing-indicator">
-  <span></span>
-  <span></span>
-  <span></span>
+    <!-- Main chat area -->
+    <div class="chat-area" id="chatArea">
+        <div class="empty-chat-placeholder" id="emptyChatPlaceholder">
+            <div class="text-center">
+                <img src="{% static 'chat/img/logo.svg' %}" alt="Connect" class="logo-large mb-4">
+                <h2>Welcome to Connect Chat</h2>
+                <p class="text-muted">Select a conversation to start chatting</p>
+                <div class="features-container mt-5">
+                    <div class="row justify-content-center">
+                        <div class="col-md-10">
+                            <div class="row row-cols-1 row-cols-md-2 g-4">
+                                <div class="col">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">
+                                            <i class="fas fa-bolt"></i>
+                                        </div>
+                                        <h5>Real-time Messaging</h5>
+                                        <p>Communicate instantly with WebSocket technology</p>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">
+                                            <i class="fas fa-circle"></i>
+                                        </div>
+                                        <h5>Online Status</h5>
+                                        <p>See when your contacts are available</p>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">
+                                            <i class="fas fa-check-double"></i>
+                                        </div>
+                                        <h5>Read Receipts</h5>
+                                        <p>Know when your messages have been read</p>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">
+                                            <i class="fas fa-keyboard"></i>
+                                        </div>
+                                        <h5>Typing Indicators</h5>
+                                        <p>See when someone is typing a response</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat header -->
+        <div class="chat-header" id="chatHeader" style="display: none;">
+            <div class="chat-user-info">
+                <div class="user-avatar">
+                    <div class="avatar-placeholder" id="chatAvatarPlaceholder"></div>
+                    <span class="status-indicator" id="chatStatusIndicator"></span>
+                </div>
+                <div class="chat-user-details">
+                    <div class="chat-username" id="chatUsername"></div>
+                    <div class="chat-status" id="chatStatus">Offline</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages container -->
+        <div class="messages-container" id="messagesContainer" style="display: none;">
+            <div class="messages" id="messages"></div>
+        </div>
+
+        <!-- Message input -->
+        <div class="message-input-container" id="messageInputContainer" style="display: none;">
+            <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                <span class="typing-text">User is typing...</span>
+                <span class="typing-dots">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </span>
+            </div>
+            <div class="message-input">
+                <div class="input-group">
+                    <button class="btn btn-format" id="btnEmoji">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <textarea class="form-control" id="messageInput" placeholder="Type your message here..." rows="1"></textarea>
+                    <button class="btn btn-send" id="sendMessage" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User online/offline toast notification -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="statusToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">User Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="statusToastBody"></div>
+    </div>
 </div>
 {% endblock %}
 
-
-{% block extra_body %}
-    <script>
-        $(function () {
-            // Correctly decide between ws:// and wss://
-            var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
-            var ws_path = ws_scheme + '://' + window.location.host + "/chat/stream/";
-            console.log("Connecting to " + ws_path);
-            var socket = new ReconnectingWebSocket(ws_path);
-
-            // Handle incoming messages
-            socket.onmessage = function (message) {
-                // Decode the JSON
-                console.log("Got websocket message " + message.data);
-                var data = JSON.parse(message.data);
-                // Handle errors
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-                // Handle joining
-                if (data.join) {
-                    console.log("Joining room " + data.join);
-                    var roomdiv = $(
-                            "<div class='room' id='room-" + data.join + "'>" +
-                            "<h2>" + data.title + "</h2>" +
-                            "<div class='messages'></div>" +
-                            "<form><input><button>Send</button></form>" +
-                            "</div>"
-                    );
-                    // Hook up send button to send a message
-                    roomdiv.find("form").on("submit", function () {
-                        socket.send(JSON.stringify({
-                            "command": "send",
-                            "room": data.join,
-                            "message": roomdiv.find("input").val()
-                        }));
-                        roomdiv.find("input").val("");
-                        return false;
-                    });
-                    $("#chats").append(roomdiv);
-                    // Handle leaving
-                } else if (data.leave) {
-                    console.log("Leaving room " + data.leave);
-                    $("#room-" + data.leave).remove();
-                    // Handle getting a message
-                } else if (data.message || data.msg_type != 0) {
-                    var msgdiv = $("#room-" + data.room + " .messages");
-                    var ok_msg = "";
-                    // msg types are defined in chat/settings.py
-                    // Only for demo purposes is hardcoded, in production scenarios, consider call a service.
-                    switch (data.msg_type) {
-                        case 0:
-                            // Message
-                            ok_msg = "<div class='message'>" +
-                                    "<span class='username'>" + data.username + "</span>" +
-                                    "<span class='body'>" + data.message + "</span>" +
-                                    "</div>";
-                            break;
-                        case 1:
-                            // Warning / Advice messages
-                            ok_msg = "<div class='contextual-message text-warning'>" + data.message +
-                                    "</div>";
-                            break;
-                        case 2:
-                            // Alert / Danger messages
-                            ok_msg = "<div class='contextual-message text-danger'>" + data.message +
-                                    "</div>";
-                            break;
-                        case 3:
-                            // "Muted" messages
-                            ok_msg = "<div class='contextual-message text-muted'>" + data.message +
-                                    "</div>";
-                            break;
-                        case 4:
-                            // User joined room
-                            ok_msg = "<div class='contextual-message text-muted'>" + data.username +
-                                    " joined the room!" +
-                                    "</div>";
-                            break;
-                        case 5:
-                            // User left room
-                            ok_msg = "<div class='contextual-message text-muted'>" + data.username +
-                                    " left the room!" +
-                                    "</div>";
-                            break;
-                        default:
-                            console.log("Unsupported message type!");
-                            return;
-                    }
-                    msgdiv.append(ok_msg);
-
-                    msgdiv.scrollTop(msgdiv.prop("scrollHeight"));
-                } else {
-                    console.log("Cannot handle message!");
-                }
-            };
-
-            // Says if we joined a room or not by if there's a div for it
-            inRoom = function (roomId) {
-                return $("#room-" + roomId).length > 0;
-            };
-
-            // Room join/leave
-            $("li.room-link").click(function () {
-                roomId = $(this).attr("data-room-id");
-                if (inRoom(roomId)) {
-                    // Leave room
-                    $(this).removeClass("joined");
-                    socket.send(JSON.stringify({
-                        "command": "leave",
-                        "room": roomId
-                    }));
-                } else {
-                    // Join room
-                    $(this).addClass("joined");
-                    socket.send(JSON.stringify({
-                        "command": "join",
-                        "room": roomId
-                    }));
-                }
-            });
-
-            // Helpful debugging
-            socket.onopen = function () {
-                console.log("Connected to chat socket");
-            };
-            socket.onclose = function () {
-                console.log("Disconnected from chat socket");
-            }
-        });
-    </script>
+{% block extra_js %}
+<script src="{% static 'chat/js/chat.js' %}"></script>
+<script>
+    // Initialize the chat with current user's data
+    document.addEventListener('DOMContentLoaded', function() {
+        initChat({{ user.id }}, "{{ user.username }}");
+    });
+</script>
 {% endblock %}

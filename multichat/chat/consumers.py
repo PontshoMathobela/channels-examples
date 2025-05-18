@@ -1,185 +1,226 @@
-from django.conf import settings
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.contrib.auth.models import User
+from django.utils import timezone
+from .models import Message, UserProfile
 
-from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from .exceptions import ClientError
-from .utils import get_room_or_error
-
-
-class ChatConsumer(AsyncJsonWebsocketConsumer):
-    """
-    This chat consumer handles websocket connections for chat clients.
-
-    It uses AsyncJsonWebsocketConsumer, which means all the handling functions
-    must be async functions, and any sync work (like ORM access) has to be
-    behind database_sync_to_async or sync_to_async. For more, read
-    http://channels.readthedocs.io/en/latest/topics/consumers.html
-    """
-
-    ##### WebSocket event handlers
-
+class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        """
-        Called when the websocket is handshaking as part of initial connection.
-        """
-        # Are they logged in?
-        if self.scope["user"].is_anonymous:
-            # Reject the connection
+        self.user = self.scope["user"]
+        
+        if not self.user.is_authenticated:
+            # Reject the connection if user is not authenticated
             await self.close()
-        else:
-            # Accept the connection
-            await self.accept()
-        # Store which rooms the user has joined on this connection
-        self.rooms = set()
-
-    async def receive_json(self, content):
-        """
-        Called when we get a text frame. Channels will JSON-decode the payload
-        for us and pass it as the first argument.
-        """
-        # Messages will have a "command" key we can switch on
-        command = content.get("command", None)
-        try:
-            if command == "join":
-                # Make them join the room
-                await self.join_room(content["room"])
-            elif command == "leave":
-                # Leave the room
-                await self.leave_room(content["room"])
-            elif command == "send":
-                await self.send_room(content["room"], content["message"])
-        except ClientError as e:
-            # Catch any errors and send it back
-            await self.send_json({"error": e.code})
-
-    async def disconnect(self, code):
-        """
-        Called when the WebSocket closes for any reason.
-        """
-        # Leave all the rooms we are still in
-        for room_id in list(self.rooms):
-            try:
-                await self.leave_room(room_id)
-            except ClientError:
-                pass
-
-    ##### Command helper methods called by receive_json
-
-    async def join_room(self, room_id):
-        """
-        Called by receive_json when someone sent a join command.
-        """
-        # The logged-in user is in our scope thanks to the authentication ASGI middleware
-        room = await get_room_or_error(room_id, self.scope["user"])
-        # Send a join message if it's turned on
-        if settings.NOTIFY_USERS_ON_ENTER_OR_LEAVE_ROOMS:
-            await self.channel_layer.group_send(
-                room.group_name,
-                {
-                    "type": "chat.join",
-                    "room_id": room_id,
-                    "username": self.scope["user"].username,
-                }
-            )
-        # Store that we're in the room
-        self.rooms.add(room_id)
-        # Add them to the group so they get room messages
+            return
+        
+        # Update user's online status
+        await self.update_user_status(True)
+        
+        # Join a group for the user to receive personal messages
+        self.user_group_name = f"user_{self.user.id}"
         await self.channel_layer.group_add(
-            room.group_name,
-            self.channel_name,
+            self.user_group_name,
+            self.channel_name
         )
-        # Instruct their client to finish opening the room
-        await self.send_json({
-            "join": str(room.id),
-            "title": room.title,
-        })
-
-    async def leave_room(self, room_id):
-        """
-        Called by receive_json when someone sent a leave command.
-        """
-        # The logged-in user is in our scope thanks to the authentication ASGI middleware
-        room = await get_room_or_error(room_id, self.scope["user"])
-        # Send a leave message if it's turned on
-        if settings.NOTIFY_USERS_ON_ENTER_OR_LEAVE_ROOMS:
-            await self.channel_layer.group_send(
-                room.group_name,
-                {
-                    "type": "chat.leave",
-                    "room_id": room_id,
-                    "username": self.scope["user"].username,
-                }
-            )
-        # Remove that we're in the room
-        self.rooms.discard(room_id)
-        # Remove them from the group so they no longer get room messages
-        await self.channel_layer.group_discard(
-            room.group_name,
-            self.channel_name,
+        
+        # Join a general group to broadcast online status
+        await self.channel_layer.group_add(
+            'all_users',
+            self.channel_name
         )
-        # Instruct their client to finish closing the room
-        await self.send_json({
-            "leave": str(room.id),
-        })
-
-    async def send_room(self, room_id, message):
-        """
-        Called by receive_json when someone sends a message to a room.
-        """
-        # Check they are in this room
-        if room_id not in self.rooms:
-            raise ClientError("ROOM_ACCESS_DENIED")
-        # Get the room and send to the group about it
-        room = await get_room_or_error(room_id, self.scope["user"])
+        
+        await self.accept()
+        
+        # Broadcast to all users that this user is online
         await self.channel_layer.group_send(
-            room.group_name,
+            'all_users',
             {
-                "type": "chat.message",
-                "room_id": room_id,
-                "username": self.scope["user"].username,
-                "message": message,
+                'type': 'user_status',
+                'user_id': self.user.id,
+                'status': 'online'
             }
         )
 
-    ##### Handlers for messages sent over the channel layer
-
-    # These helper methods are named by the types we send - so chat.join becomes chat_join
-    async def chat_join(self, event):
-        """
-        Called when someone has joined our chat.
-        """
-        # Send a message down to the client
-        await self.send_json(
+    async def disconnect(self, close_code):
+        # Update user's offline status
+        await self.update_user_status(False)
+        
+        # Leave user's personal group
+        await self.channel_layer.group_discard(
+            self.user_group_name,
+            self.channel_name
+        )
+        
+        # Leave the general group
+        await self.channel_layer.group_discard(
+            'all_users',
+            self.channel_name
+        )
+        
+        # Broadcast to all users that this user is offline
+        await self.channel_layer.group_send(
+            'all_users',
             {
-                "msg_type": settings.MSG_TYPE_ENTER,
-                "room": event["room_id"],
-                "username": event["username"],
-            },
+                'type': 'user_status',
+                'user_id': self.user.id,
+                'status': 'offline'
+            }
         )
 
-    async def chat_leave(self, event):
-        """
-        Called when someone has left our chat.
-        """
-        # Send a message down to the client
-        await self.send_json(
-            {
-                "msg_type": settings.MSG_TYPE_LEAVE,
-                "room": event["room_id"],
-                "username": event["username"],
-            },
-        )
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        message_type = data.get('type', 'chat_message')
+        
+        if message_type == 'chat_message':
+            message = data['message']
+            receiver_id = data['receiver_id']
+            
+            # Save message to database
+            message_obj = await self.save_message(receiver_id, message)
+            
+            # Send message to personal group of receiver
+            receiver_group_name = f"user_{receiver_id}"
+            await self.channel_layer.group_send(
+                receiver_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message,
+                    'sender_id': self.user.id,
+                    'sender_username': self.user.username,
+                    'message_id': message_obj.id,
+                    'timestamp': message_obj.timestamp.isoformat()
+                }
+            )
+            
+            # Send confirmation back to sender
+            await self.channel_layer.group_send(
+                self.user_group_name,
+                {
+                    'type': 'message_sent',
+                    'message': message,
+                    'receiver_id': receiver_id,
+                    'message_id': message_obj.id,
+                    'timestamp': message_obj.timestamp.isoformat()
+                }
+            )
+            
+        elif message_type == 'read_messages':
+            sender_id = data['sender_id']
+            await self.mark_messages_as_read(sender_id)
+            
+            # Notify sender that messages were read
+            sender_group_name = f"user_{sender_id}"
+            await self.channel_layer.group_send(
+                sender_group_name,
+                {
+                    'type': 'messages_read',
+                    'reader_id': self.user.id
+                }
+            )
+            
+        elif message_type == 'typing_status':
+            receiver_id = data['receiver_id']
+            is_typing = data['is_typing']
+            
+            # Send typing status to receiver
+            receiver_group_name = f"user_{receiver_id}"
+            await self.channel_layer.group_send(
+                receiver_group_name,
+                {
+                    'type': 'typing_status',
+                    'user_id': self.user.id,
+                    'is_typing': is_typing
+                }
+            )
 
     async def chat_message(self, event):
         """
-        Called when someone has messaged our chat.
+        Send message to WebSocket.
         """
-        # Send a message down to the client
-        await self.send_json(
-            {
-                "msg_type": settings.MSG_TYPE_MESSAGE,
-                "room": event["room_id"],
-                "username": event["username"],
-                "message": event["message"],
-            },
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'message': event['message'],
+            'sender_id': event['sender_id'],
+            'sender_username': event['sender_username'],
+            'message_id': event['message_id'],
+            'timestamp': event['timestamp']
+        }))
+
+    async def message_sent(self, event):
+        """
+        Confirm message was sent.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'message_sent',
+            'message': event['message'],
+            'receiver_id': event['receiver_id'],
+            'message_id': event['message_id'],
+            'timestamp': event['timestamp']
+        }))
+
+    async def messages_read(self, event):
+        """
+        Notify that messages were read.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'messages_read',
+            'reader_id': event['reader_id']
+        }))
+
+    async def typing_status(self, event):
+        """
+        Notify about typing status.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'typing_status',
+            'user_id': event['user_id'],
+            'is_typing': event['is_typing']
+        }))
+
+    async def user_status(self, event):
+        """
+        Broadcast user online/offline status.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'user_status',
+            'user_id': event['user_id'],
+            'status': event['status']
+        }))
+    
+    @database_sync_to_async
+    def update_user_status(self, is_online):
+        """
+        Update user's online status in database.
+        """
+        profile, created = UserProfile.objects.get_or_create(user=self.user)
+        profile.is_online = is_online
+        profile.last_activity = timezone.now()
+        profile.save()
+        return profile
+
+    @database_sync_to_async
+    def save_message(self, receiver_id, content):
+        """
+        Save message to database.
+        """
+        receiver = User.objects.get(id=receiver_id)
+        message = Message.objects.create(
+            sender=self.user,
+            receiver=receiver,
+            content=content
         )
+        return message
+
+    @database_sync_to_async
+    def mark_messages_as_read(self, sender_id):
+        """
+        Mark messages from sender as read.
+        """
+        sender = User.objects.get(id=sender_id)
+        Message.objects.filter(
+            sender=sender,
+            receiver=self.user,
+            is_read=False
+        ).update(is_read=True)

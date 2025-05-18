@@ -1,7 +1,7 @@
 {% extends 'chat/base.html' %}
 {% load django_bootstrap5 %}
 
-{% block title %}Connect - Login{% endblock %}
+{% block title %}Connect - Register{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -13,9 +13,9 @@
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(79, 70, 229, 0.1));
     }
     
-    .login-container {
+    .register-container {
         width: 100%;
-        max-width: 440px;
+        max-width: 460px;
         padding: 40px;
         background-color: var(--card-bg);
         border-radius: 16px;
@@ -36,21 +36,21 @@
         }
     }
     
-    .login-logo {
+    .register-logo {
         width: 80px;
         height: 80px;
         margin-bottom: 1.5rem;
         filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
     }
     
-    .login-form .form-control {
+    .register-form .form-control {
         padding: 0.75rem 1rem;
         border-radius: 8px;
         transition: all var(--transition-speed) ease;
         border: 1px solid var(--border-color);
     }
     
-    .login-form .form-control:focus {
+    .register-form .form-control:focus {
         box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
         border-color: var(--brand-color-light);
     }
@@ -79,7 +79,7 @@
         transform: translateY(1px);
     }
     
-    .login-form label {
+    .register-form label {
         font-weight: 500;
         margin-bottom: 0.5rem;
         color: var(--text-secondary);
@@ -105,29 +105,38 @@
     
     .form-text {
         color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+    
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="login-container">
+<div class="register-container">
     <div class="text-center mb-4">
         {% load static %}
-        <img src="{% static 'chat/img/logo.svg' %}" alt="Connect" class="login-logo">
-        <h2 class="mb-3" data-lang="welcome">Welcome to Connect Chat</h2>
-        <p class="text-muted">Enter your credentials to access your account</p>
+        <img src="{% static 'chat/img/logo.svg' %}" alt="Connect" class="register-logo">
+        <h2 class="mb-3">Create a Connect Account</h2>
+        <p class="text-muted">Join our chat platform today</p>
     </div>
     
-    <form method="post" class="login-form">
+    <form method="post" class="register-form">
         {% csrf_token %}
-        {% if form.errors %}
+        {% if form.non_field_errors %}
         <div class="alert alert-danger">
-            <strong>Error:</strong> Please check your username and password.
+            {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
         </div>
         {% endif %}
         
         <div class="mb-3">
-            <label for="{{ form.username.id_for_label }}" class="form-label" data-lang="username">Username</label>
+            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
             {{ form.username }}
             {% if form.username.errors %}
             <div class="invalid-feedback d-block">
@@ -136,22 +145,45 @@
             {% endif %}
         </div>
         
-        <div class="mb-4">
-            <label for="{{ form.password.id_for_label }}" class="form-label" data-lang="password">Password</label>
-            {{ form.password }}
-            {% if form.password.errors %}
+        <div class="mb-3">
+            <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+            {{ form.email }}
+            {% if form.email.errors %}
             <div class="invalid-feedback d-block">
-                {{ form.password.errors }}
+                {{ form.email.errors }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+            <div class="invalid-feedback d-block">
+                {{ form.password1.errors }}
+            </div>
+            {% endif %}
+            <div class="form-text small text-muted">
+                Your password must be at least 8 characters long and can't be entirely numeric.
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+            <div class="invalid-feedback d-block">
+                {{ form.password2.errors }}
             </div>
             {% endif %}
         </div>
         
         <div class="mb-4">
-            <button type="submit" class="btn btn-brand w-100 py-2" data-lang="login">Login</button>
+            <button type="submit" class="btn btn-brand w-100 py-2">Register</button>
         </div>
         
         <div class="text-center">
-            <p>Don't have an account? <a href="{% url 'register' %}" class="text-decoration-none" data-lang="register">Register</a></p>
+            <p>Already have an account? <a href="{% url 'login' %}" class="text-decoration-none">Login</a></p>
         </div>
     </form>
 </div>

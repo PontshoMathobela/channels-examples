@@ -1,0 +1,193 @@
+{% extends 'chat/base.html' %}
+{% load static %}
+
+{% block title %}Connect - Chat with {{ chat_user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        overflow: hidden;
+    }
+    
+    .chat-container {
+        height: calc(100vh - 76px - 60px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--card-bg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .back-button {
+        margin-right: 1rem;
+        color: var(--text-secondary);
+    }
+    
+    .chat-user-info {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+    }
+    
+    .room-messages-container {
+        flex-grow: 1;
+        padding: 1rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        background-color: var(--bg-color);
+    }
+    
+    .room-messages {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .message-input-container {
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+        background-color: var(--card-bg);
+    }
+    
+    .message-tools {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+    }
+    
+    .message-tool-button {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.25rem;
+        padding: 0.25rem 0.5rem;
+        cursor: pointer;
+        margin-right: 0.5rem;
+    }
+    
+    .message-tool-button:hover {
+        color: var(--brand-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Chat header -->
+    <div class="chat-header">
+        <a href="{% url 'index' %}" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="chat-user-info">
+            <div class="user-avatar">
+                <div class="avatar-placeholder">{{ chat_user.username|first|upper }}</div>
+                <span class="status-indicator {% if chat_user.profile.is_online %}online{% else %}offline{% endif %}" id="statusIndicator"></span>
+            </div>
+            <div class="chat-user-details">
+                <div class="chat-username">{{ chat_user.username }}</div>
+                <div class="chat-status" id="userStatus">
+                    {% if chat_user.profile.is_online %}Online{% else %}Offline{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="chat-actions">
+            <button class="btn btn-sm btn-outline-secondary" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Messages container -->
+    <div class="room-messages-container">
+        <div class="room-messages" id="messagesContainer">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="message {% if message.sender == request.user %}sent{% else %}received{% endif %}"
+                     data-message-id="{{ message.id }}">
+                    <div class="message-content">{{ message.content }}</div>
+                    <div class="message-timestamp">{{ message.formatted_timestamp }}</div>
+                    {% if message.is_read and message.sender == request.user %}
+                    <div class="read-indicator">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-messages text-center p-4">
+                    <i class="fas fa-comments fa-3x mb-3 text-muted"></i>
+                    <h5>No messages yet</h5>
+                    <p class="text-muted">Start the conversation with {{ chat_user.username }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Message input -->
+    <div class="message-input-container">
+        <div class="typing-indicator" id="typingIndicator" style="display: none;">
+            <span class="typing-text">{{ chat_user.username }} is typing...</span>
+            <span class="typing-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </span>
+        </div>
+        <div class="message-tools">
+            <button class="message-tool-button" id="emojiButton">
+                <i class="far fa-smile"></i>
+            </button>
+            <button class="message-tool-button" id="boldButton">
+                <i class="fas fa-bold"></i>
+            </button>
+            <button class="message-tool-button" id="italicButton">
+                <i class="fas fa-italic"></i>
+            </button>
+            <button class="message-tool-button" id="linkButton">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+        <div class="message-input">
+            <div class="input-group">
+                <textarea class="form-control" id="messageInput" placeholder="Type your message here..." rows="2"></textarea>
+                <button class="btn btn-send" id="sendButton" disabled>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User online/offline toast notification -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="statusToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">User Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="statusToastBody"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'chat/js/room.js' %}"></script>
+<script>
+    // Initialize chat room with user information
+    document.addEventListener('DOMContentLoaded', function() {
+        initChatRoom({
+            currentUserId: {{ request.user.id }},
+            currentUsername: "{{ request.user.username }}",
+            chatUserId: {{ chat_user.id }},
+            chatUsername: "{{ chat_user.username }}",
+            isOnline: {% if chat_user.profile.is_online %}true{% else %}false{% endif %}
+        });
+    });
+</script>
+{% endblock %}

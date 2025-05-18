@@ -1,15 +1,21 @@
 """
-ASGI entrypoint. Configures Django and then runs the application
-defined in the ASGI_APPLICATION setting.
+ASGI config for connect_chat project.
 """
 
 import os
-from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'multichat.settings')
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+import chat.routing
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connect_chat.settings')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
+    "websocket": AuthMiddlewareStack(
+        URLRouter(
+            chat.routing.websocket_urlpatterns
+        )
+    ),
 })
-

@@ -6,4 +6,5 @@ class ChatConfig(AppConfig):
     name = 'chat'
 
     def ready(self):
-        import chat.signals
+       import chat.signals
+         # Import the signals module to ensure the signal handlers are registered

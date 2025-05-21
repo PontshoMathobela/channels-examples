@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block websocket %}
+    <script src="{% static 'js/reconnecting-websocket.js' %}"></script>
+    <script>
+        const socket = new ReconnectingWebSocket(
+            'ws://' + window.location.host + '/ws/chat/',
+            null,
+            { debug: true }
+        );
+    </script>
+{% endblock %}

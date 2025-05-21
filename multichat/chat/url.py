@@ -1,5 +1,5 @@
 """
-URL configuration for connect_chat project.
+URL configuration for connect project.
 """
 
 from django.contrib import admin

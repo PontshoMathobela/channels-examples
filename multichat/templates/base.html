@@ -96,7 +96,11 @@
     
     <!-- Language Support -->
     <script src="{% static 'chat/js/language.js' %}"></script>
+    <script src="{% static 'js/reconnecting-websocket.js' %}"></script>
+    <script src="{% static 'js/websocket_handler.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
+     {% block content %}{% endblock %}
+    {% block websocket %}{% endblock %}
 </body>
 </html>

@@ -1,3 +1,8 @@
 from django.test import TestCase
+from channels.testing import WebsocketCommunicator
 
-# Create your tests here.
+async def test_consumer():
+    communicator = WebsocketCommunicator(consumer, "/ws/chat/")
+    connected, _ = await communicator.connect()
+    assert connected
+    await communicator.disconnect()

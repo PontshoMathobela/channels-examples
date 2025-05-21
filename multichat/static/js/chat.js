@@ -412,6 +412,7 @@ function loadUserMessages(userId) {
             
             // Focus on the message input
             document.getElementById('messageInput').focus();
+
         })
         .catch(error => {
             console.error('Error loading messages:', error);

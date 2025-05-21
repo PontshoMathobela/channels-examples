@@ -39,10 +39,10 @@ class Message(models.Model):
     
     class Meta:
         ordering = ['timestamp']
-        app_label = 'connect'
     indexes = [
         models.Index(fields=['sender', 'receiver', 'is_read']),
         models.Index(fields=['timestamp']),
+        app_label =='connect'    
     ]
     
 

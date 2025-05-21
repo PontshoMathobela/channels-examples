@@ -37,6 +37,10 @@ class Message(models.Model):
     
     class Meta:
         ordering = ['timestamp']
+    indexes = [
+        models.Index(fields=['sender', 'receiver', 'is_read']),
+        models.Index(fields=['timestamp'])
+    ]
     
     def __str__(self):
         return f"From {self.sender.username} to {self.receiver.username}: {self.content[:20]}"

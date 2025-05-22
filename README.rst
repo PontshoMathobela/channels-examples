@@ -49,3 +49,15 @@ How to Run the Connect Project
 8. **Open your browser and go to:**
 
    http://127.0.0.1:8000/
+9.Docker installation
+Run the app:
+
+docker-compose up -d
+The app will now be running on: {your-docker-ip}:8000
+
+Note: You will need to prefix any python manage.py commands with: docker-compose run --rm web. e.g.: docker-compose run --rm web python manage.py createsuperuser
+
+
+10.Finally, run:
+
+docker-compose run --rm web python manage.py migrate

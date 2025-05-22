@@ -6,9 +6,11 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import connect.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connect_settings')
+# Make sure this matches your actual settings file location:
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connect.settings')  # <-- Common default
+
+import connect.routing  # Make sure connect/routing.py exists
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),

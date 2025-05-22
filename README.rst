@@ -5,7 +5,7 @@ This is a repository of simple, well-commented django project site features in D
 
 The Connect project (or app) was created based on an example called **Chat**, which is a real-time chat application built using Django Channels. This setup is supported by Daphne (an ASGI server) and Redis (used as a channel layer backend for message passing and event handling).
 
-How to Run the Connect Project
+How to Run the Connect Project (note: if these instructions are not clear enough , navigate to multichat -Readme file)
 =============================
 
 1. **Clone the repository:**

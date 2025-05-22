@@ -3,11 +3,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load secret key from environment for security
-SECRET_KEY = keyman.03('DJANGO_SECRET_KEY', 'unsafe-development-key')
-
 # Set debug mode from environment (default to False for safety)
-DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
@@ -104,7 +101,7 @@ else:
     }
 
 # Channels - Use Redis in production
-if os.getenv('USE_REDIS', 'False') == 'True':
+if os.getenv('USE_REDIS', 'False') == 'false':
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -145,3 +142,5 @@ LOGOUT_REDIRECT_URL = '/login/'
 SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'unsafe-development-key')

@@ -17,7 +17,7 @@ SECRET_KEY = 'django-insecure-hk(f5hxbxmm%c^f8!y03mn4b#u-ypf$r+rut6@c*^o88^g2(5l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', 'localhost', '.replit.dev', '.repl.co']
+ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', 'localhost', '.replit.dev', '.repl.co' , '159.223.92.235']
 
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = ['https://*.replit.dev', 'https://*.repl.co']

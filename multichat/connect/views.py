@@ -2,13 +2,10 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, Q, Max
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.db.models import Count, Q
+from django.http import JsonResponse, HttpResponse
 from .forms import CustomUserCreationForm, CustomAuthenticationForm
 from .models import Message, UserProfile
-import json
-from connect.models import Message, UserProfile
 
 
 @login_required
@@ -157,3 +154,10 @@ def get_users(request):
             user['is_online'] = False
     
     return JsonResponse({'users': list(users)})
+
+
+def home(request):
+    """
+    Home page view.
+    """
+    return HttpResponse("Welcome to MultiChat!")

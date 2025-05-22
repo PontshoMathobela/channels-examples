@@ -3,12 +3,16 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, Q, Max
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from .forms import CustomUserCreationForm, CustomAuthenticationForm
 from .models import Message, UserProfile
 import json
 from connect.models import Message, UserProfile
+
+
+def home(request):
+    return HttpResponse("Welcome to MultiChat!")
 
 
 @login_required
